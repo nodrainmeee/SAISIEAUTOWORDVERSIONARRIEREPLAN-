@@ -1,0 +1,4 @@
+# Dépendances d'AutoSaisie Word (versions épinglées pour des compilations reproductibles)
+python-docx==1.1.2   # importation des documents Word (.docx)
+pywin32==308; sys_platform == "win32"   # saisie en arrière-plan (automatisation de Word)
+pyinstaller==6.10.0  # création de l'exécutable Windows (utilisé par GitHub Actions)

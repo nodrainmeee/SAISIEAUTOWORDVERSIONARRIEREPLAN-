@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+# Environnements virtuels
+.venv/
+venv/
+env/
+# Compilation
+build/
+dist/
+*.egg-info/
+# Éditeurs / système
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+# Journaux et secrets (ne jamais envoyer sur GitHub)
+*.log
+.env
