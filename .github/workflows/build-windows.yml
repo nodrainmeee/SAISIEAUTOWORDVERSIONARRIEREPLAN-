@@ -1,0 +1,82 @@
+name: Compiler AutoSaisie Word (Windows)
+
+on:
+  push:
+    branches: [main, master]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compiler:
+    name: Tests et compilation
+    runs-on: windows-latest
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: Installer Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Installer les dépendances
+        run: python -m pip install -r requirements.txt
+
+      - name: Vérifier la présence des fichiers du projet
+        shell: pwsh
+        run: |
+          $fichiers = @("app.py","requirements.txt","AutoSaisieWord.spec","autosaisie/interface.py","autosaisie/securite.py","autosaisie/saisie.py","autosaisie/texte.py","autosaisie/rythme.py","autosaisie/libelles.py","autosaisie/winapi.py","autosaisie/word_com.py","autosaisie/style.py","tests/test_texte.py","tests/test_securite_word.py","tests/test_arriere_plan.py")
+          $manquants = $fichiers | Where-Object { -not (Test-Path $_) }
+          if ($manquants) { Write-Error "Fichiers manquants : $($manquants -join ', ')"; exit 1 }
+          Write-Host "Tous les fichiers du projet sont présents."
+
+      - name: Exécuter les tests automatisés
+        run: python -m unittest discover -s tests -t . -v
+
+      - name: Compiler avec PyInstaller
+        run: python -m PyInstaller --noconfirm AutoSaisieWord.spec
+
+      - name: Vérifier que l'exécutable existe
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "dist/AutoSaisieWord.exe")) {
+            Write-Error "ÉCHEC : dist/AutoSaisieWord.exe n'a pas été créé."
+            exit 1
+          }
+          $taille = [math]::Round((Get-Item "dist/AutoSaisieWord.exe").Length / 1MB, 1)
+          Write-Host "Exécutable créé : AutoSaisieWord.exe ($taille Mo)"
+          (Get-FileHash "dist/AutoSaisieWord.exe" -Algorithm SHA256).Hash | Out-File "dist/AutoSaisieWord.exe.sha256.txt" -Encoding ascii
+
+      - name: Publier l'artefact téléchargeable
+        uses: actions/upload-artifact@v4
+        with:
+          name: AutoSaisieWord-Windows
+          path: |
+            dist/AutoSaisieWord.exe
+            dist/AutoSaisieWord.exe.sha256.txt
+          if-no-files-found: error
+
+  publier-version:
+    name: Publier dans GitHub Releases (uniquement sur un tag vX.Y.Z)
+    needs: compiler
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Télécharger l'exécutable compilé
+        uses: actions/download-artifact@v4
+        with:
+          name: AutoSaisieWord-Windows
+          path: publication
+
+      - name: Créer la version
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            publication/AutoSaisieWord.exe
+            publication/AutoSaisieWord.exe.sha256.txt
